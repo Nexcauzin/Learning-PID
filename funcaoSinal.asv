@@ -1,0 +1,58 @@
+%% Anotações para teste
+% REFERENTE A PARTE DE SINAL DE ENTRADA (:
+%- Degrau: ones(size(tempo_simulacao)) * valordegrau
+%Bom para avaliar a resposta transitória, mudança repentina, tempo de
+%resposta
+
+%- Senoide: frequencia = 1; % frequência em Hz
+%           entrada_simulacao = sin(2 * pi * frequencia * tempo_simulacao);
+%Bom para analisar as diferentes frequencias de entrada
+
+%- Pulso: duracao_pulso = 1; % duração do pulso em segundos
+%         entrada_simulacao = (tempo_simulacao < duracao_pulso);
+%Bom para analisar a resposta ao impulso, avaliar o retorno ao equilibrio
+%após perturbações breves e intens
+
+
+%% Extração dos dados
+% Lendo os dados
+dados = readtable('Dados/Tratado/Rep1.xlsx');
+
+% Extraindo valores
+potencia = dados.Potencia;
+tensao = dados.Tensao;
+corrente = dados.Corrente;
+throttle = dados.Throttle;
+intervalo = dados.Intervalo;
+
+% Convertendo para tempo absoluto
+tempo = cumsum(intervalo_tempo);
+
+%% Conversão dos Dados para 'idddata'
+sampling_time = mean(intervalo);
+data_id = iddata(potencia, throttle, sampling_time);
+
+%% Identificação do modelo
+modelo_sistema = tfest(data_id, 2, 1); % Estimando a função de transferência de segunda ordem
+
+%% Validação do modelo
+compare(data_id, modelo_sistema);
+controlador_pid = pidtune(modelo_sistema, 'PID');
+
+
+%% Simulação do sistema com controle PID
+% Tempo de simulação
+tempo_simulacao = 0 : 0.01 : 30;
+
+% Sinal de entrada (Ta o degrau por enquanto, ainda n sei qual colocar)
+entrada_simulacao = ones(size(tempo_simulacao)) * 680;
+% No caso vai aumentar repentinamente para 680W
+
+% Simulando sistema
+saida_simulada = lsim(controlador_pid * modelo_sistema, entrada_simulacao, tempo_simulacao);
+
+% Plotando a resposta
+plot(tempo_simulacao, saida_simulada);
+xlabel('Tempo (s)');
+ylabel('Potência (W)');
+title('Resposta do Sistema PID')
