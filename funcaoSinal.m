@@ -41,23 +41,22 @@ intervalo = dados.Intervalo;
 % Convertendo para tempo absoluto
 tempo = cumsum(intervalo);
 
-%% Conversão dos Dados para 'idddata'
+%% Conversão dos Dados para 'iddata'
 sampling_time = mean(intervalo);
 data_id = iddata(potencia, throttle, sampling_time);
 
 %% Identificação do modelo
-modelo_sistema = tfest(data_id, 2, 1); % Estimando a função de transferência de segunda ordem
+modelo_sistema = tfest(data_id, 2, 1); % Estimando a função de transferência de segunda ordem com 1 polo
 
 %% Validação do modelo
 compare(data_id, modelo_sistema);
-controlador_pid = pidtune(modelo_sistema, 'PID');
+controlador_pid = pidtune(modelo_sistema, 'PD'); % Da para variar entre PID, PI e PD
 
 % Constantes utilizadas
 Kp = controlador_pid.Kp;
 Ki = controlador_pid.Ki;
 Kd = controlador_pid.Kd;
 disp(['Kp: ', num2str(Kp), ' | Ki: ', num2str(Ki), ' | Kd: ', num2str(Kd)]);
-
 
 %% Simulação do sistema com controle PID
 % Tempo de simulação
@@ -73,8 +72,24 @@ entrada_simulacao = taxa_rampa * tempo_simulacao + valor_inicial;
 % Simulando sistema
 saida_simulada = lsim(controlador_pid * modelo_sistema, entrada_simulacao, tempo_simulacao);
 
-% Plotando a resposta
+% Plotando a resposta (só PID simulado)
 plot(tempo_simulacao, saida_simulada);
 xlabel('Tempo (s)');
 ylabel('Potência (W)');
 title('Resposta do Sistema PID')
+
+% Gráfico da entrada + pid pontilhado
+plot(tempo, potencia, 'r-') % Dado real (Linha vermelha)
+hold on; % Mantém o plot anterior
+plot(tempo_simulacao, saida_simulada, 'b--') % Simulacao (Pontilhado azul)
+hold off; % Libera o plot
+xlabel('Tempo (s)')
+ylabel('Potencia (W)')
+title('Resposta do Sistema PID')
+legend('Função Normal', 'Função Pontilhada') % Legenda do grafico
+
+% Exportando dados simulados
+saida_simulada_str = strrep(num2str(saida_simulada), '.', ',');
+tempo_simulacao_str = strrep(num2str(tempo_simulacao), '.', ',');
+df_simulas = table(saida_simulada_str', tempo_simulacao_str', 'VariableNames', {'Potencia_W', 'Tempo_s'});
+writetable(df_simulas, 'Simulacoes/SimulasPID1.xlsx');
